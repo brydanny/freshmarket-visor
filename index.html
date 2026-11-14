@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor Power BI FreshMarket</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>
+  html,body{margin:0;height:100%;background:#F4F9F5;font-family:-apple-system,"Segoe UI",Calibri,sans-serif;overflow:hidden}
+  #visor{position:absolute;inset:0;width:100%;height:100%;border:0;background:#F4F9F5}
+  /* Botón de configuración: solo visible al pasar el mouse en modo edición */
+  #cfg{position:absolute;top:8px;right:8px;z-index:2;opacity:0;transition:opacity .2s;
+       background:#0F6B3A;color:#fff;border:0;border-radius:16px;padding:6px 12px;font-size:12px;cursor:pointer}
+  body:hover #cfg{opacity:.85}
+  body.presentando #cfg{display:none}
+  #panel{display:none;position:absolute;top:44px;right:8px;z-index:3;background:#fff;border-radius:10px;
+         box-shadow:0 6px 24px rgba(15,59,34,.25);padding:12px;width:min(520px,90%)}
+  #panel input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #A8CF8E;border-radius:6px;font-size:12px}
+  #panel button{margin-top:8px;margin-right:6px;padding:6px 12px;border-radius:6px;border:0;background:#0F6B3A;color:#fff;cursor:pointer}
+  #panel button.sec{background:#E8F5EC;color:#0F6B3A}
+</style>
+</head>
+<body>
+<iframe id="visor" allowfullscreen allow="fullscreen"></iframe>
+<button id="cfg" title="Cambiar URL">⚙ URL</button>
+<div id="panel">
+  <input id="url" type="url" placeholder="https://app.powerbi.com/view?r=...">
+  <button id="guardar">Cargar</button><button class="sec" id="cerrar">Cerrar</button>
+</div>
+<script>
+// URL por defecto del dashboard publicado en Power BI
+const URL_DEFECTO = "https://app.powerbi.com/view?r=eyJrIjoiN2FkNDdhZWMtNGMxOS00Yjk3LWI4MzktZTU2Y2NkYzc2YWY0IiwidCI6ImRkMmI1MmJiLTlmZjMtNDkyYi1hMTJiLTc4Mzc5ZTQ2ZGI2NiJ9";
+const visor = document.getElementById('visor');
+const panel = document.getElementById('panel');
+const campo = document.getElementById('url');
+
+function cargar(url){ if (visor.src !== url) visor.src = url; campo.value = url; }
+
+// Lee la URL guardada en la presentación; si no existe usa la del dashboard
+function iniciar(){
+  let url = URL_DEFECTO;
+  try { url = Office.context.document.settings.get('visorUrl') || URL_DEFECTO; } catch(e) {}
+  cargar(url);
+  // Oculta el botón de configuración durante la presentación
+  try {
+    Office.context.document.getActiveViewAsync(r => { if (r.value === 'read') document.body.classList.add('presentando'); });
+    Office.context.document.addHandlerAsync(Office.EventType.ActiveViewChanged, ev => {
+      document.body.classList.toggle('presentando', ev.activeView === 'read');
+    });
+  } catch(e) {}
+}
+
+document.getElementById('cfg').onclick = () => { panel.style.display = 'block'; campo.focus(); };
+document.getElementById('cerrar').onclick = () => { panel.style.display = 'none'; };
+document.getElementById('guardar').onclick = () => {
+  const url = campo.value.trim();
+  // Solo se permiten direcciones seguras (requisito de los complementos de Office)
+  if (!/^https:\/\//i.test(url)) { alert('La URL debe empezar con https://'); return; }
+  cargar(url);
+  try { Office.context.document.settings.set('visorUrl', url); Office.context.document.settings.saveAsync(); } catch(e) {}
+  panel.style.display = 'none';
+};
+
+if (window.Office && Office.onReady) { Office.onReady(() => iniciar()); } else { iniciar(); }
+</script>
+</body>
+</html>
